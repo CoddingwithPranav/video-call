@@ -28,7 +28,7 @@ export const RealRoom = ({
   const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
 
   useEffect(() => {
-    const socket = new WebSocket('wss://locahost:8080'); // Fixed URL to wss://
+    const socket = new WebSocket('wss://ws.pranavmishra.dev'); // Fixed URL to wss://
     setSocket(socket);
 
     socket.onopen = () => {
@@ -50,10 +50,14 @@ export const RealRoom = ({
 
       if (message.type === 'send-offer') {
         setLobby(false);
-        const pc = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        const pc =  new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302'}, {
+            urls: "turn:free.expressturn.com:3478",
+            username: "000000002083246983",
+            credential: "wON0bzQQ19tSIZuPwS2TKAyuQRQ="
+          },
+          ]
         });
-
         pc.onconnectionstatechange = () => {
           console.log("Peer connection state:", pc.connectionState);
         };
@@ -70,6 +74,17 @@ export const RealRoom = ({
         } else {
           console.warn("No audio track available");
         }
+
+        pc.ontrack = (event) => {
+          console.log("Sender received remote track:", event.track.kind);
+          if (event.track.kind === 'video' && remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = new MediaStream([event.track]);
+            remoteVideoRef.current.play().catch(e => console.error("Play error:", e));
+          } else if (event.track.kind === 'audio' && remoteAudioRef.current) {
+            remoteAudioRef.current.srcObject = new MediaStream([event.track]);
+            remoteAudioRef.current.play().catch(e => console.error("Play error:", e));
+          }
+        };
 
         pc.onicecandidate = async (e) => {
           if (e.candidate) {
@@ -97,11 +112,24 @@ export const RealRoom = ({
       }
 
       if (message.type === 'offer') {
+        console.log("here");
         if (!message.sdp) return;
         setLobby(false);
         const pc = new RTCPeerConnection({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302'}, {
+            urls: "turn:free.expressturn.com:3478",
+            username: "000000002083246983",
+            credential: "wON0bzQQ19tSIZuPwS2TKAyuQRQ="
+          },
+          ]
         });
+
+        if (localVideoTrack) {
+          pc.addTrack(localVideoTrack);
+        }
+        if (localAudioTrack) {
+          pc.addTrack(localAudioTrack);
+        }
 
         pc.ontrack = (event) => {
           console.log("Track received:", event.track, event.streams);
