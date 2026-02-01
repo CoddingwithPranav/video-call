@@ -9,7 +9,7 @@ declare module 'ws' {
   }
 }
 
-const wss = new WebSocketServer({ port: 8080 });
+const wss = new WebSocketServer({ port: 3000 });
 const userManager = new UserManager();
 
 wss.on('connection', (ws: WebSocket) => {
