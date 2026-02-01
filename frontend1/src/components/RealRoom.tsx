@@ -28,7 +28,7 @@ export const RealRoom = ({
   const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
 
   useEffect(() => {
-    const socket = new WebSocket('wss://ws.pranavmishra.dev'); // Fixed URL to wss://
+    const socket = new WebSocket('wss://vecall.pranavmishra.dev/api'); // Fixed URL to wss://
     setSocket(socket);
 
     socket.onopen = () => {
