@@ -12,4 +12,4 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/package*.json ./
 RUN npm install -g serve
 EXPOSE 5173
-CMD ["serve", "-s", "dist", "-l", "5173", "--ssl-cert", "cert.pem", "--ssl-key", "key.pem"]
+CMD ["serve", "-s", "dist", "-l", "5173"]
