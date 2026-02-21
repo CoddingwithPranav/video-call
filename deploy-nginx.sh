@@ -11,6 +11,18 @@ EMAIL="pranavmishra2101@gmail.com"
 NGINX_CONFIG_FILE="nginx.conf"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Nginx paths
+NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
+NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
+SITE_NAME="$DOMAIN"
+NGINX_CONF="$PROJECT_DIR/$NGINX_CONFIG_FILE"
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
 echo "🚀 Starting Nginx and SSL setup for $DOMAIN"
 echo "📁 Project directory: $PROJECT_DIR"
 echo ""
@@ -109,7 +121,11 @@ fi
 # Display status
 echo ""
 echo -e "${GREEN}=== Deployment Summary ===${NC}"
-echo -e "Site: ${GREEN}$SIT
+echo -e "Site: ${GREEN}$SITE_NAME${NC}"
+
+if nc -z localhost 3000 2>/dev/null; then
+    echo -e "${GREEN}✓ Backend (port 3000): Running${NC}"
+else
     echo -e "${YELLOW}⚠ Backend (port 3000): Not running${NC}"
     echo -e "  Run: docker-compose up -d"
 fi
