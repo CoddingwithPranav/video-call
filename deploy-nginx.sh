@@ -1,36 +1,48 @@
 #!/bin/bash
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# Complete Nginx and SSL setup script
+# This script installs dependencies, obtains SSL certificate, and configures Nginx
+
+set -e
 
 # Configuration
-NGINX_CONF="nginx.conf"
-NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
-NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
-SITE_NAME="vecall.pranavmishra.dev"
+DOMAIN="vecall.pranavmishra.dev"
+EMAIL="pranavmishra2101@gmail.com"
+NGINX_CONFIG_FILE="nginx.conf"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo -e "${GREEN}=== Video Call Nginx Deployment Script ===${NC}"
+echo "🚀 Starting Nginx and SSL setup for $DOMAIN"
+echo "📁 Project directory: $PROJECT_DIR"
 echo ""
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then 
-    echo -e "${RED}Error: This script must be run as root (use sudo)${NC}"
+    echo "❌ Please run as root (use sudo)"
     exit 1
 fi
 
-# Check if nginx.conf exists
-if [ ! -f "$NGINX_CONF" ]; then
-    echo -e "${RED}Error: nginx.conf not found in current directory${NC}"
+# Check if nginx config file exists
+if [ ! -f "$PROJECT_DIR/$NGINX_CONFIG_FILE" ]; then
+    echo "❌ Nginx config file not found: $PROJECT_DIR/$NGINX_CONFIG_FILE"
     exit 1
 fi
 
-# Check if nginx is installed
+# Install nginx if not installed
 if ! command -v nginx &> /dev/null; then
-    echo -e "${YELLOW}Nginx is not installed. Installing...${NC}"
-    apt update && apt install -y nginx
+    echo "📦 Installing Nginx..."
+    apt-get update
+    apt-get install -y nginx
+else
+    echo "✅ Nginx already installed"
+fi
+
+# Install certbot if not installed
+if ! command -v certbot &> /dev/null; then
+    echo "📦 Installing Certbot..."
+    apt-get update
+    apt-get install -y certbot python3-certbot-nginx
+else
+    echo "✅ Certbot already installed"
 fi
 
 # Backup existing configuration if it exists
@@ -97,25 +109,7 @@ fi
 # Display status
 echo ""
 echo -e "${GREEN}=== Deployment Summary ===${NC}"
-echo -e "Site: ${GREEN}$SITE_NAME${NC}"
-echo -e "Config: ${GREEN}$NGINX_SITES_AVAILABLE/$SITE_NAME${NC}"
-echo -e "Status: ${GREEN}$(systemctl is-active nginx)${NC}"
-echo ""
-echo -e "${GREEN}Testing site connectivity...${NC}"
-
-# Test HTTP connection
-if curl -s -o /dev/null -w "%{http_code}" http://localhost | grep -q "301\|200"; then
-    echo -e "${GREEN}✓ HTTP is responding${NC}"
-else
-    echo -e "${YELLOW}⚠ HTTP might not be responding correctly${NC}"
-fi
-
-# Check if services are running
-echo ""
-echo -e "${GREEN}=== Service Status ===${NC}"
-if nc -z localhost 3000 2>/dev/null; then
-    echo -e "${GREEN}✓ Backend (port 3000): Running${NC}"
-else
+echo -e "Site: ${GREEN}$SIT
     echo -e "${YELLOW}⚠ Backend (port 3000): Not running${NC}"
     echo -e "  Run: docker-compose up -d"
 fi
