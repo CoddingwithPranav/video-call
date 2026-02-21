@@ -57,13 +57,47 @@ else
     echo "✅ Certbot already installed"
 fi
 
+# Remove default nginx site if it exists
+if [ -L "$NGINX_SITES_ENABLED/default" ]; then
+    echo -e "${YELLOW}Removing default nginx site...${NC}"
+    rm "$NGINX_SITES_ENABLED/default"
+fi
+
+# Obtain SSL certificates if not present
+if [ ! -f "/etc/letsencrypt/live/$SITE_NAME/fullchain.pem" ]; then
+    echo -e "${YELLOW}⚠ SSL certificates not found. Deploying temporary HTTP config to obtain them...${NC}"
+
+    # Write a minimal HTTP-only config for certbot
+    cat > "$NGINX_SITES_AVAILABLE/$SITE_NAME" <<EOF
+server {
+    listen 80;
+    server_name $SITE_NAME;
+    location / { return 200 'ok'; }
+}
+EOF
+
+    # Enable site
+    if [ ! -L "$NGINX_SITES_ENABLED/$SITE_NAME" ]; then
+        ln -s "$NGINX_SITES_AVAILABLE/$SITE_NAME" "$NGINX_SITES_ENABLED/$SITE_NAME"
+    fi
+
+    nginx -t && systemctl restart nginx
+
+    echo -e "${GREEN}Obtaining SSL certificate via certbot...${NC}"
+    certbot certonly --nginx -d "$SITE_NAME" --non-interactive --agree-tos --email "$EMAIL"
+
+    echo -e "${GREEN}✓ SSL certificates obtained${NC}"
+else
+    echo -e "${GREEN}✓ SSL certificates already exist${NC}"
+fi
+
 # Backup existing configuration if it exists
 if [ -f "$NGINX_SITES_AVAILABLE/$SITE_NAME" ]; then
     echo -e "${YELLOW}Backing up existing configuration...${NC}"
     cp "$NGINX_SITES_AVAILABLE/$SITE_NAME" "$NGINX_SITES_AVAILABLE/$SITE_NAME.backup.$(date +%Y%m%d_%H%M%S)"
 fi
 
-# Copy nginx configuration
+# Deploy the full SSL nginx configuration
 echo -e "${GREEN}Copying nginx configuration...${NC}"
 cp "$NGINX_CONF" "$NGINX_SITES_AVAILABLE/$SITE_NAME"
 
@@ -73,22 +107,12 @@ if [ ! -L "$NGINX_SITES_ENABLED/$SITE_NAME" ]; then
     ln -s "$NGINX_SITES_AVAILABLE/$SITE_NAME" "$NGINX_SITES_ENABLED/$SITE_NAME"
 fi
 
-# Remove default nginx site if it exists
-if [ -L "$NGINX_SITES_ENABLED/default" ]; then
-    echo -e "${YELLOW}Removing default nginx site...${NC}"
-    rm "$NGINX_SITES_ENABLED/default"
-fi
-
 # Test nginx configuration
 echo -e "${GREEN}Testing nginx configuration...${NC}"
 if nginx -t; then
     echo -e "${GREEN}✓ Nginx configuration is valid${NC}"
 else
     echo -e "${RED}✗ Nginx configuration test failed${NC}"
-    echo -e "${YELLOW}Restoring backup if available...${NC}"
-    if [ -f "$NGINX_SITES_AVAILABLE/$SITE_NAME.backup."* ]; then
-        cp "$NGINX_SITES_AVAILABLE/$SITE_NAME.backup."* "$NGINX_SITES_AVAILABLE/$SITE_NAME"
-    fi
     exit 1
 fi
 
@@ -100,22 +124,8 @@ if systemctl is-active --quiet nginx; then
     echo -e "${GREEN}✓ Nginx restarted successfully${NC}"
 else
     echo -e "${RED}✗ Nginx failed to start${NC}"
-    echo -e "${YELLOW}Checking nginx status:${NC}"
     systemctl status nginx
     exit 1
-fi
-
-# Check if SSL certificates exist
-echo ""
-echo -e "${YELLOW}Checking SSL certificates...${NC}"
-if [ ! -f "/etc/letsencrypt/live/$SITE_NAME/fullchain.pem" ]; then
-    echo -e "${YELLOW}⚠ SSL certificates not found${NC}"
-    echo -e "${YELLOW}To obtain SSL certificates, run:${NC}"
-    echo -e "  sudo certbot --nginx -d $SITE_NAME"
-    echo ""
-    echo -e "${YELLOW}For now, you can access the site via HTTP${NC}"
-else
-    echo -e "${GREEN}✓ SSL certificates found${NC}"
 fi
 
 # Display status
